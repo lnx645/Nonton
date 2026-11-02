@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nonton</string>
+    <string name="app_tagline">Tonton tanpa gangguan</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Beranda</string>
+    <string name="nav_search">Cari</string>
+    <string name="nav_library">Koleksi</string>
+    <string name="nav_settings">Pengaturan</string>
+
+    <!-- Home / search -->
+    <string name="trending_in">Trending di %1$s</string>
+    <string name="search_hint">Cari video, musik, channel…</string>
+    <string name="search_empty">Ketik sesuatu untuk mulai mencari.</string>
+    <string name="search_no_result">Tidak ada video yang ditemukan.</string>
+    <string name="search_results_for">Hasil untuk “%1$s”</string>
+    <string name="retry">Coba lagi</string>
+    <string name="load_more">Muat lebih banyak</string>
+    <string name="error_generic">Terjadi kesalahan. Coba lagi.</string>
+    <string name="error_network">Tidak dapat terhubung. Periksa koneksi internetmu.</string>
+    <string name="error_youtube">Layanan menolak permintaan (verifikasi/bot). Coba lagi nanti atau pakai layanan lain.</string>
+    <string name="error_content">Konten tidak tersedia atau sudah dihapus.</string>
+
+    <!-- Player -->
+    <string name="player_download">Unduh</string>
+    <string name="player_save">Simpan</string>
+    <string name="player_share">Bagikan</string>
+    <string name="player_quality">Kualitas</string>
+    <string name="player_audio_only">Audio saja</string>
+    <string name="player_description">Deskripsi</string>
+    <string name="player_related">Video terkait</string>
+    <string name="player_views">%1$s tayangan</string>
+    <string name="player_likes">%1$s suka</string>
+    <string name="player_audio_mode">Mode audio</string>
+    <string name="player_load_error">Gagal memuat video.</string>
+    <string name="player_pip">Mode PiP</string>
+
+    <!-- Library -->
+    <string name="library_history">Riwayat</string>
+    <string name="library_playlists">Playlist</string>
+    <string name="library_downloads">Unduhan</string>
+    <string name="library_history_empty">Belum ada riwayat tontonan.</string>
+    <string name="library_playlists_empty">Belum ada playlist. Buat satu untuk menyimpan video favoritmu.</string>
+    <string name="library_downloads_empty">Belum ada unduhan.</string>
+    <string name="library_clear_history">Hapus riwayat</string>
+    <string name="library_clear_history_confirm">Hapus seluruh riwayat tontonan?</string>
+    <string name="library_new_playlist">Playlist baru</string>
+    <string name="library_playlist_name">Nama playlist</string>
+    <string name="library_create">Buat</string>
+    <string name="library_cancel">Batal</string>
+    <string name="library_delete">Hapus</string>
+    <string name="library_delete_playlist_confirm">Hapus playlist “%1$s”?</string>
+    <string name="library_remove_item">Hapus dari playlist</string>
+    <string name="library_added_to_playlist">Ditambahkan ke %1$s</string>
+    <string name="library_no_playlist">Belum ada playlist. Buat playlist baru dulu.</string>
+    <string name="library_choose_playlist">Simpan ke playlist</string>
+    <string name="library_play_all">Putar semua</string>
+    <string name="library_items_count">%1$d video</string>
+
+    <!-- Downloads -->
+    <string name="download_title">Unduh media</string>
+    <string name="download_video">Video</string>
+    <string name="download_audio">Audio</string>
+    <string name="download_start">Mulai unduh</string>
+    <string name="download_queued">Masuk antrean unduhan</string>
+    <string name="download_completed">Unduhan selesai</string>
+    <string name="download_failed">Unduhan gagal</string>
+    <string name="download_cancel">Batalkan</string>
+    <string name="download_open">Buka</string>
+    <string name="download_remove">Hapus dari daftar</string>
+    <string name="download_no_video">Tidak ada format video progresif. Coba audio saja.</string>
+    <string name="download_no_audio">Tidak ada format audio.</string>
+    <string name="download_notification_channel">Unduhan Nonton</string>
+    <string name="download_progress">Mengunduh %1$s</string>
+    <string name="download_storage_error">Gagal menyimpan file.</string>
+
+    <!-- Settings -->
+    <string name="settings_appearance">Tampilan</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_system">Ikuti sistem</string>
+    <string name="settings_theme_light">Terang</string>
+    <string name="settings_theme_dark">Gelap</string>
+    <string name="settings_dynamic_color">Warna dinamis (Material You)</string>
+    <string name="settings_playback">Pemutaran</string>
+    <string name="settings_default_service">Layanan default</string>
+    <string name="settings_pip">Picture-in-Picture otomatis</string>
+    <string name="settings_pip_desc">Masuk mode PiP saat keluar dari pemutar ketika video sedang diputar.</string>
+    <string name="settings_default_quality">Kualitas video default</string>
+    <string name="settings_quality_best">Terbaik</string>
+    <string name="settings_quality_720">720p</string>
+    <string name="settings_quality_480">480p</string>
+    <string name="settings_quality_360">360p</string>
+    <string name="settings_data">Data</string>
+    <string name="settings_clear_cache">Bersihkan cache gambar</string>
+    <string name="settings_cache_cleared">Cache dibersihkan</string>
+    <string name="settings_about">Tentang</string>
+    <string name="settings_version">Versi %1$s</string>
+    <string name="settings_about_text">Nonton adalah aplikasi open source (GPLv3) untuk menjelajah dan memutar media dari layanan publik. Aplikasi ini tidak berafiliasi dengan YouTube, SoundCloud, PeerTube, Bandcamp, atau media.ccc.de.\n\nSemua konten adalah milik pemiliknya masing-masing. Gunakan hanya untuk keperluan yang sah dan hormati ketentuan layanan masing-masing penyedia.\n\nDibangun dengan Jetpack Compose, Media3, dan NewPipeExtractor.</string>
+    <string name="settings_license">Lisensi GPLv3</string>
+
+    <!-- Misc -->
+    <string name="service_youtube">YouTube</string>
+    <string name="service_soundcloud">SoundCloud</string>
+    <string name="service_peertube">PeerTube</string>
+    <string name="service_bandcamp">Bandcamp</string>
+    <string name="service_mediaccc">media.ccc.de</string>
+    <string name="open_in_browser">Buka di browser</string>
+    <string name="share_via">Bagikan via</string>
+    <string name="copied">Tautan disalin</string>
+    <string name="unknown_uploader">Tanpa nama</string>
+    <string name="live">LIVE</string>
+</resources>
