@@ -1,6 +1,7 @@
 package id.nonton.app.ui
 
 import id.nonton.app.core.bestThumbnailUrl
+import id.nonton.app.core.isLive
 import id.nonton.app.data.HistoryEntity
 import id.nonton.app.data.PlaylistItemEntity
 import id.nonton.app.data.PlaylistSummary

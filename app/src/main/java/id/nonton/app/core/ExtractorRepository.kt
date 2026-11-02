@@ -74,7 +74,7 @@ class ExtractorRepository {
 
     @Suppress("UNCHECKED_CAST")
     private fun newTrendingExtractor(serviceId: Int): ListExtractor<InfoItemAlias> =
-        NewPipe.getService(serviceId).kioskList.defaultKioskExtractor as ListExtractor<InfoItemAlias>
+        NewPipe.getService(serviceId).kioskList.getDefaultKioskExtractor() as ListExtractor<InfoItemAlias>
 
     @Suppress("UNCHECKED_CAST")
     private fun newSearchExtractor(serviceId: Int, query: String): ListExtractor<InfoItemAlias> =

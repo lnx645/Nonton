@@ -1,6 +1,6 @@
 package id.nonton.app.core
 
-import org.jsoup.Jsoup
+import android.text.Html
 import org.schabi.newpipe.extractor.Image
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.stream.AudioStream
@@ -136,7 +136,7 @@ fun StreamInfo.isLive(): Boolean =
 fun StreamInfo.plainDescription(): String {
     val description = description ?: return ""
     return when (description.type) {
-        Description.Type.HTML -> Jsoup.parse(description.content).text()
+        Description.Type.HTML -> Html.fromHtml(description.content, Html.FROM_HTML_MODE_LEGACY).toString().trim()
         Description.Type.MARKDOWN -> description.content
         Description.Type.PLAIN_TEXT -> description.content
     }
