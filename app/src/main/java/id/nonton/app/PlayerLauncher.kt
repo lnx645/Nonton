@@ -26,6 +26,21 @@ object PlayerIntents {
     }
 }
 
+object ChannelIntents {
+    const val EXTRA_URL = "extra_channel_url"
+    const val EXTRA_SERVICE_ID = "extra_channel_service_id"
+
+    fun createIntent(context: Context, url: String, serviceId: Int): Intent =
+        Intent(context, ChannelActivity::class.java).apply {
+            putExtra(EXTRA_URL, url)
+            putExtra(EXTRA_SERVICE_ID, serviceId)
+        }
+}
+
 fun Context.openPlayer(video: VideoUiModel, startPositionMs: Long = 0L) {
     startActivity(PlayerIntents.createIntent(this, video, startPositionMs))
+}
+
+fun Context.openChannel(url: String, serviceId: Int) {
+    startActivity(ChannelIntents.createIntent(this, url, serviceId))
 }

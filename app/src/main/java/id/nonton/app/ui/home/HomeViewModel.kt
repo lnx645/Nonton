@@ -21,11 +21,20 @@ data class HomeUiState(
     val serviceId: Int,
     val title: String = "",
     val items: List<VideoUiModel> = emptyList(),
+    val filter: HomeFilter = HomeFilter.ALL,
     val isLoading: Boolean = true,
     val isLoadingMore: Boolean = false,
     val error: String? = null,
     val nextPage: Page? = null,
-)
+) {
+    val visibleItems: List<VideoUiModel> = when (filter) {
+        HomeFilter.ALL -> items
+        HomeFilter.VIDEO -> items.filter { !it.isLive }
+        HomeFilter.LIVE -> items.filter { it.isLive }
+    }
+}
+
+enum class HomeFilter { ALL, VIDEO, LIVE }
 
 class HomeViewModel(
     private val repository: ExtractorRepository,
@@ -62,6 +71,11 @@ class HomeViewModel(
     }
 
     fun retry() = loadTrending()
+
+    fun selectFilter(filter: HomeFilter) {
+        if (filter == _state.value.filter) return
+        _state.update { it.copy(filter = filter) }
+    }
 
     fun loadMore() {
         val current = _state.value

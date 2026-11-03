@@ -33,6 +33,7 @@ data class PlaybackData(
     val bestThumbnail: String? get() = info.bestThumbnailUrl()
     val title: String get() = info.name.orEmpty()
     val uploader: String? get() = info.uploaderName
+    val uploaderUrl: String? get() = info.uploaderUrl
     val durationSeconds: Long get() = info.duration
     val description: String get() = info.plainDescription()
 

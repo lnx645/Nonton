@@ -6,11 +6,27 @@ import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.ListExtractor
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.Page
+import org.schabi.newpipe.extractor.channel.ChannelInfo
+import org.schabi.newpipe.extractor.comments.CommentsExtractor
+import org.schabi.newpipe.extractor.comments.CommentsInfoItem
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 data class FeedPage(
     val items: List<StreamInfoItem>,
+    val nextPage: Page?,
+)
+
+data class CommentsPage(
+    val items: List<CommentsInfoItem>,
+    val nextPage: Page?,
+    val totalCount: Int,
+    val disabled: Boolean,
+)
+
+data class ChannelData(
+    val info: ChannelInfo,
+    val videos: List<StreamInfoItem>,
     val nextPage: Page?,
 )
 
@@ -27,6 +43,13 @@ class ExtractorRepository {
     }
 
     private val sessionLock = Any()
+
+    private val commentSessions =
+        object : LinkedHashMap<String, ListExtractor<CommentsInfoItem>>(6, 0.75f, true) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<String, ListExtractor<CommentsInfoItem>>?,
+            ): Boolean = size > 6
+        }
 
     suspend fun trending(serviceId: Int, nextPage: Page? = null): Result<FeedPage> =
         extract {
@@ -61,8 +84,68 @@ class ExtractorRepository {
         StreamInfo.getInfo(NewPipe.getService(serviceId), url)
     }
 
+    suspend fun channel(serviceId: Int, url: String): Result<ChannelData> =
+        extract {
+            val key = "channel:$serviceId:$url"
+            val service = NewPipe.getService(serviceId)
+            val info = ChannelInfo.getInfo(service, url)
+            val tab = info.tabs.firstOrNull { it.url.contains("videos", ignoreCase = true) }
+                ?: info.tabs.firstOrNull()
+            if (tab == null) {
+                ChannelData(info, emptyList(), null)
+            } else {
+                val extractor = service.getChannelTabExtractor(tab)
+                extractor.fetchPage()
+                cacheSession(key, extractor)
+                val page = extractor.initialPage
+                ChannelData(
+                    info,
+                    page.items.filterIsInstance<StreamInfoItem>(),
+                    page.nextPage,
+                )
+            }
+        }
+
+    suspend fun channelMore(serviceId: Int, url: String, nextPage: Page): Result<FeedPage> =
+        extract {
+            val key = "channel:$serviceId:$url"
+            val extractor = session(key)
+                ?: throw IllegalStateException("Sesi channel kedaluwarsa, muat ulang.")
+            val page = extractor.getPage(nextPage)
+            FeedPage(page.items.filterIsInstance<StreamInfoItem>(), page.nextPage)
+        }
+
+    suspend fun comments(
+        serviceId: Int,
+        url: String,
+        nextPage: Page? = null,
+    ): Result<CommentsPage> = extract {
+        val key = "comments:$serviceId:$url"
+        val extractor: CommentsExtractor = if (nextPage == null) {
+            NewPipe.getService(serviceId).getCommentsExtractor(url)
+                .also { it.fetchPage() }
+                .also { synchronized(sessionLock) { commentSessions[key] = it } }
+        } else {
+            (synchronized(sessionLock) { commentSessions[key] } as? CommentsExtractor)
+                ?: NewPipe.getService(serviceId).getCommentsExtractor(url)
+                    .also { it.fetchPage() }
+        }
+        val disabled = runCatching { extractor.isCommentsDisabled }.getOrDefault(false)
+        val total = runCatching { extractor.commentsCount }.getOrDefault(-1)
+        val page = if (nextPage == null) extractor.initialPage else extractor.getPage(nextPage)
+        CommentsPage(
+            items = page.items.filterIsInstance<CommentsInfoItem>(),
+            nextPage = page.nextPage,
+            totalCount = total,
+            disabled = disabled,
+        )
+    }
+
     fun clearSessions() {
-        synchronized(sessionLock) { sessions.clear() }
+        synchronized(sessionLock) {
+            sessions.clear()
+            commentSessions.clear()
+        }
     }
 
     private fun cacheSession(key: String, extractor: ListExtractor<InfoItemAlias>) {

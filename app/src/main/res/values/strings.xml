@@ -11,6 +11,10 @@
 
     <!-- Home / search -->
     <string name="trending_in">Trending di %1$s</string>
+    <string name="home_filter_all">Semua</string>
+    <string name="home_filter_video">Video</string>
+    <string name="home_filter_live">Live</string>
+    <string name="home_empty_live">Belum ada live saat ini.</string>
     <string name="search_hint">Cari video, musik, channel…</string>
     <string name="search_empty">Ketik sesuatu untuk mulai mencari.</string>
     <string name="search_no_result">Tidak ada video yang ditemukan.</string>

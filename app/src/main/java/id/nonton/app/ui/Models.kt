@@ -1,13 +1,54 @@
 package id.nonton.app.ui
 
+import id.nonton.app.core.bestDateText
 import id.nonton.app.core.bestThumbnailUrl
 import id.nonton.app.core.isLive
 import id.nonton.app.data.HistoryEntity
 import id.nonton.app.data.PlaylistItemEntity
 import id.nonton.app.data.PlaylistSummary
+import org.schabi.newpipe.extractor.comments.CommentsInfoItem
+import org.schabi.newpipe.extractor.stream.Description
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.StreamType
+
+data class CommentUiModel(
+    val id: String,
+    val author: String,
+    val avatarUrl: String?,
+    val text: String,
+    val likeCount: Int,
+    val dateText: String,
+    val pinned: Boolean,
+    val hearted: Boolean,
+    val verified: Boolean,
+)
+
+fun CommentsInfoItem.toCommentUiModel(): CommentUiModel {
+    val desc = commentText
+    val text = when (desc?.type) {
+        Description.HTML -> android.text.Html.fromHtml(
+            desc.content, android.text.Html.FROM_HTML_MODE_LEGACY,
+        ).toString().trim()
+        else -> desc?.content.orEmpty()
+    }
+    return CommentUiModel(
+        id = commentId.orEmpty().ifBlank { "$uploaderName${desc?.content.orEmpty().hashCode()}" },
+        author = uploaderName.orEmpty().ifBlank { "Anonim" },
+        avatarUrl = uploaderAvatars.maxByOrNull { img ->
+            img.width.coerceAtLeast(0) * img.height.coerceAtLeast(0)
+        }?.url,
+        text = text,
+        likeCount = likeCount,
+        dateText = bestDateText(
+            textualUploadDate,
+            runCatching { uploadDate?.offsetDateTime()?.toInstant() }.getOrNull(),
+        ),
+        pinned = isPinned,
+        hearted = isHeartedByUploader,
+        verified = isUploaderVerified,
+    )
+}
 
 data class VideoUiModel(
     val url: String,
@@ -37,7 +78,7 @@ fun StreamInfoItem.toUiModel(): VideoUiModel = VideoUiModel(
     serviceId = serviceId,
     durationSeconds = duration,
     views = viewCount,
-    dateText = textualUploadDate,
+    dateText = bestDateText(textualUploadDate, runCatching { uploadDate?.offsetDateTime()?.toInstant() }.getOrNull()),
     isLive = streamType == StreamType.LIVE_STREAM || streamType == StreamType.AUDIO_LIVE_STREAM,
 )
 
@@ -49,7 +90,7 @@ fun StreamInfo.toUiModel(): VideoUiModel = VideoUiModel(
     serviceId = serviceId,
     durationSeconds = duration,
     views = viewCount,
-    dateText = textualUploadDate,
+    dateText = bestDateText(textualUploadDate, runCatching { uploadDate?.offsetDateTime()?.toInstant() }.getOrNull()),
     isLive = isLive(),
 )
 

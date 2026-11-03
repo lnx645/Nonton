@@ -6,9 +6,11 @@ import id.nonton.app.core.ExtractorRepository
 import id.nonton.app.core.SettingsStore
 import id.nonton.app.core.userMessage
 import id.nonton.app.ui.VideoUiModel
+import id.nonton.app.ui.home.HomeFilter
 import id.nonton.app.ui.simpleViewModelFactory
 import id.nonton.app.ui.toUiModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,11 +23,18 @@ data class SearchUiState(
     val query: String = "",
     val submittedQuery: String = "",
     val items: List<VideoUiModel> = emptyList(),
+    val filter: HomeFilter = HomeFilter.ALL,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val error: String? = null,
     val nextPage: Page? = null,
-)
+) {
+    val visibleItems: List<VideoUiModel> = when (filter) {
+        HomeFilter.ALL -> items
+        HomeFilter.VIDEO -> items.filter { !it.isLive }
+        HomeFilter.LIVE -> items.filter { it.isLive }
+    }
+}
 
 class SearchViewModel(
     private val repository: ExtractorRepository,
@@ -39,9 +48,19 @@ class SearchViewModel(
 
     private var searchJob: Job? = null
     private var moreJob: Job? = null
+    private var debounceJob: Job? = null
 
     fun onQueryChange(query: String) {
         _state.update { it.copy(query = query) }
+        // Live search: cari otomatis setelah pengguna berhenti mengetik.
+        debounceJob?.cancel()
+        val trimmed = query.trim()
+        if (trimmed.isBlank() || trimmed == _state.value.submittedQuery) return
+        debounceJob = viewModelScope.launch {
+            delay(600)
+            _state.update { it.copy(submittedQuery = trimmed) }
+            search(reset = true)
+        }
     }
 
     fun selectService(serviceId: Int) {
@@ -56,6 +75,7 @@ class SearchViewModel(
     fun submit() {
         val query = _state.value.query.trim()
         if (query.isBlank()) return
+        debounceJob?.cancel()
         if (query == _state.value.submittedQuery && _state.value.items.isNotEmpty()) return
         _state.update { it.copy(submittedQuery = query) }
         search(reset = true)
@@ -63,9 +83,15 @@ class SearchViewModel(
 
     fun retry() = search(reset = true)
 
+    fun selectFilter(filter: HomeFilter) {
+        if (filter == _state.value.filter) return
+        _state.update { it.copy(filter = filter) }
+    }
+
     fun clear() {
         searchJob?.cancel()
         moreJob?.cancel()
+        debounceJob?.cancel()
         _state.update {
             it.copy(
                 query = "",

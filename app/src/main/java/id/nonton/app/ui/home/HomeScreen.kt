@@ -21,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.nonton.app.R
 import id.nonton.app.openPlayer
+import id.nonton.app.ui.components.ContentFilterRow
 import id.nonton.app.ui.components.EmptyState
 import id.nonton.app.ui.components.EndlessListEffect
 import id.nonton.app.ui.components.ErrorState
@@ -55,8 +57,18 @@ fun HomeScreen(
         onLoadMore = viewModel::loadMore,
     )
 
+    LaunchedEffect(state.filter) {
+        listState.scrollToItem(0)
+    }
+
+    val visibleItems = state.visibleItems
+
     Column(modifier = Modifier.fillMaxSize()) {
         HomeHeader(onOpenSearch = onOpenSearch)
+        ContentFilterRow(
+            selected = state.filter,
+            onSelect = viewModel::selectFilter,
+        )
 
         Box(modifier = Modifier.weight(1f)) {
             when {
@@ -65,8 +77,12 @@ fun HomeScreen(
                     message = state.error.orEmpty(),
                     onRetry = viewModel::retry,
                 )
-                state.items.isEmpty() -> EmptyState(
-                    title = "Belum ada video",
+                visibleItems.isEmpty() -> EmptyState(
+                    title = if (state.filter == HomeFilter.LIVE) {
+                        stringResource(R.string.home_empty_live)
+                    } else {
+                        "Belum ada video"
+                    },
                     subtitle = "Coba layanan lain atau muat ulang.",
                 )
                 else -> LazyColumn(
@@ -86,13 +102,13 @@ fun HomeScreen(
                             )
                             Spacer(Modifier.weight(1f))
                             Text(
-                                text = "${state.items.size} video",
+                                text = "${visibleItems.size} video",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-                    items(state.items, key = { it.url }) { video ->
+                    items(visibleItems, key = { it.url }) { video ->
                         VideoCard(
                             video = video,
                             onClick = { context.openPlayer(video) },

@@ -58,11 +58,78 @@ fun sanitizeFileName(name: String): String {
 fun formatViewsAndDate(views: Long, date: String?): String {
     val parts = mutableListOf<String>()
     if (views >= 0) parts += "${formatCount(views)} tayangan"
-    if (!date.isNullOrBlank()) parts += date
+    val localized = translateDateText(date)
+    if (localized.isNotBlank()) parts += localized
     return parts.joinToString(" · ")
 }
 
 fun formatTimestamp(seconds: Long): String {
     val safe = seconds.coerceAtLeast(0)
     return formatDuration(safe)
+}
+
+/** Waktu relatif Bahasa Indonesia, mis. "3 jam lalu". Null bila tanggal di masa depan. */
+fun relativeTimeId(instant: java.time.Instant?): String? {
+    if (instant == null) return null
+    val seconds = java.time.Duration.between(instant, java.time.Instant.now()).seconds
+    if (seconds < 0) return null
+    val minutes = seconds / 60
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        seconds < 60 -> "baru saja"
+        minutes < 60 -> "$minutes menit lalu"
+        hours < 24 -> "$hours jam lalu"
+        days < 7 -> (if (days <= 1) "kemarin" else "$days hari lalu")
+        days < 30 -> "${days / 7} minggu lalu"
+        days < 365 -> "${days / 30} bulan lalu"
+        else -> "${days / 365} tahun lalu"
+    }
+}
+
+private val relativeEnRegex =
+    Regex("(\\d+)\\s*(second|minute|hour|day|week|month|year)s?\\s*ago", RegexOption.IGNORE_CASE)
+
+private val relativeUnitId = mapOf(
+    "second" to "detik",
+    "minute" to "menit",
+    "hour" to "jam",
+    "day" to "hari",
+    "week" to "minggu",
+    "month" to "bulan",
+    "year" to "tahun",
+)
+
+private val monthEnToId = mapOf(
+    "january" to "Januari", "february" to "Februari", "march" to "Maret",
+    "april" to "April", "may" to "Mei", "june" to "Juni",
+    "july" to "Juli", "august" to "Agustus", "september" to "September",
+    "october" to "Oktober", "november" to "November", "december" to "Desember",
+    "jan" to "Jan", "feb" to "Feb", "mar" to "Mar", "apr" to "Apr",
+    "jun" to "Jun", "jul" to "Jul", "aug" to "Agu", "sep" to "Sep",
+    "sept" to "Sep", "oct" to "Okt", "nov" to "Nov", "dec" to "Des",
+)
+
+/** Tanggal terbaik untuk ditampilkan: relatif dari Instant bila ada, else terjemahan teks. */
+fun bestDateText(textual: String?, instant: java.time.Instant?): String =
+    relativeTimeId(instant) ?: translateDateText(textual)
+
+/** Terjemahkan tanggal relatif Inggris ("3 days ago", "Aug 12, 2026") ke Bahasa Indonesia. */
+fun translateDateText(text: String?): String {
+    if (text.isNullOrBlank()) return ""
+    var s = text.trim()
+    if (s.equals("just now", ignoreCase = true)) return "baru saja"
+    if (s.equals("yesterday", ignoreCase = true)) return "kemarin"
+    if (s.equals("today", ignoreCase = true)) return "hari ini"
+    s = relativeEnRegex.replace(s) { m ->
+        val amount = m.groupValues[1]
+        val unit = relativeUnitId[m.groupValues[2].lowercase()] ?: m.groupValues[2]
+        "$amount $unit lalu"
+    }
+    s = s.replace(Regex("(?i)\\bstreamed live on\\b"), "Live pada")
+        .replace(Regex("(?i)\\bpremiered\\b"), "Tayang perdana")
+    for ((en, id) in monthEnToId) {
+        s = s.replace(Regex("\\b$en\\b", RegexOption.IGNORE_CASE), id)
+    }
+    return s
 }

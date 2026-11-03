@@ -75,6 +75,9 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
+        // Ikon status bar putih agar terlihat di atas video (ala YouTube).
+        WindowCompat.getInsetsController(window, window.decorView)
+            .isAppearanceLightStatusBars = false
         super.onCreate(savedInstanceState)
 
         val url = intent.getStringExtra(PlayerIntents.EXTRA_URL)
@@ -100,6 +103,8 @@ class PlayerActivity : ComponentActivity() {
                     onSelectAudio = viewModel::selectAudio,
                     onOpenRelated = { video -> viewModel.open(video.url, video.serviceId) },
                     onEnterPip = { enterPipIfPossible() },
+                    onLoadMoreComments = viewModel::loadMoreComments,
+                    onRetryComments = viewModel::retryComments,
                 )
             }
         }
@@ -139,15 +144,25 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun enterPipIfPossible() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        if (inPip) return
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
-        if (controller == null) return
-
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            toast("Picture-in-Picture butuh Android 8+")
+            return
+        }
+        if (isInPictureInPictureMode) return
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+            toast("HP ini tidak mendukung Picture-in-Picture")
+            return
+        }
         val params = PictureInPictureParams.Builder()
             .setAspectRatio(Rational(16, 9))
             .build()
-        runCatching { enterPictureInPictureMode(params) }
+        val ok = runCatching { enterPictureInPictureMode(params) }.getOrDefault(false)
+        android.util.Log.d("PlayerActivity", "enterPictureInPictureMode result=$ok")
+        if (!ok) toast("Gagal masuk mode PiP")
+    }
+
+    private fun toast(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
 
     override fun onPictureInPictureModeChanged(

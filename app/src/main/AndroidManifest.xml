@@ -41,6 +41,12 @@
             android:theme="@style/Theme.Nonton.Player"
             android:windowSoftInputMode="adjustResize" />
 
+        <activity
+            android:name=".ChannelActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Nonton"
+            android:windowSoftInputMode="adjustResize" />
+
         <service
             android:name=".playback.PlaybackService"
             android:exported="true"

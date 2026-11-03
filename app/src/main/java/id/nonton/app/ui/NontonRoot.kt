@@ -1,6 +1,7 @@
 package id.nonton.app.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
@@ -16,9 +17,15 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -30,7 +37,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import id.nonton.app.AppContainer
 import id.nonton.app.NotificationPermissionEffect
+import id.nonton.app.PlayerIntents
 import id.nonton.app.R
+import id.nonton.app.openPlayer
+import id.nonton.app.playback.PlaybackService
+import id.nonton.app.ui.components.MiniPlayerBar
 import id.nonton.app.ui.home.HomeScreen
 import id.nonton.app.ui.home.HomeViewModel
 import id.nonton.app.ui.library.LibraryScreen
@@ -42,6 +53,11 @@ import id.nonton.app.ui.search.SearchViewModel
 import id.nonton.app.ui.settings.SettingsScreen
 import id.nonton.app.ui.settings.SettingsViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.content.ComponentName
+import androidx.core.content.ContextCompat
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import kotlinx.coroutines.delay
 
 private object Routes {
     const val HOME = "home"
@@ -86,10 +102,101 @@ fun NontonRoot(container: AppContainer) {
         factory = SettingsViewModel.factory(container.settings)
     )
 
+    // Mini-player: pantau sesi playback global agar info lagu/video yang sedang
+    // diputar tetap terlihat walau PlayerActivity sudah ditutup (mis. via PiP).
+    val appContext = LocalContext.current.applicationContext
+    var npController by remember { mutableStateOf<MediaController?>(null) }
+    var npHasMedia by remember { mutableStateOf(false) }
+    var npPlaying by remember { mutableStateOf(false) }
+    var npTitle by remember { mutableStateOf("") }
+    var npUploader by remember { mutableStateOf<String?>(null) }
+    var npThumbnail by remember { mutableStateOf<String?>(null) }
+    var npUrl by remember { mutableStateOf<String?>(null) }
+    var npServiceId by remember { mutableStateOf(0) }
+    var npProgress by remember { mutableStateOf(0f) }
+
+    DisposableEffect(Unit) {
+        val token = SessionToken(appContext, ComponentName(appContext, PlaybackService::class.java))
+        val future = MediaController.Builder(appContext, token).buildAsync()
+        future.addListener(
+            { npController = runCatching { future.get() }.getOrNull() },
+            ContextCompat.getMainExecutor(appContext),
+        )
+        onDispose {
+            runCatching { MediaController.releaseFuture(future) }
+            npController = null
+        }
+    }
+
+    LaunchedEffect(npController) {
+        val mc = npController ?: return@LaunchedEffect
+        while (true) {
+            val item = if (mc.mediaItemCount > 0) mc.currentMediaItem else null
+            val meta = item?.mediaMetadata
+            val extras = meta?.extras
+            npHasMedia = item != null
+            npPlaying = mc.isPlaying
+            npTitle = meta?.title?.toString().orEmpty()
+            npUploader = meta?.artist?.toString()
+                ?: extras?.getString(PlayerIntents.EXTRA_UPLOADER)
+            npThumbnail = extras?.getString(PlayerIntents.EXTRA_THUMBNAIL)
+            npUrl = extras?.getString(PlayerIntents.EXTRA_URL)
+            npServiceId = extras?.getInt(PlayerIntents.EXTRA_SERVICE_ID, 0) ?: 0
+            val duration = mc.duration.takeIf { it > 0 } ?: 0L
+            npProgress = if (duration > 0) {
+                (mc.currentPosition.toFloat() / duration).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            delay(1_000)
+        }
+    }
+
+    val miniPlayerVisible = npHasMedia && !npUrl.isNullOrBlank()
+    val mainContext = LocalContext.current
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (showBottomBar) {
+            Column {
+                if (miniPlayerVisible) {
+                    MiniPlayerBar(
+                        title = npTitle,
+                        uploader = npUploader,
+                        thumbnailUrl = npThumbnail,
+                        isPlaying = npPlaying,
+                        progressFraction = npProgress,
+                        // Saat bottom nav aplikasi sembunyi (mis. detail playlist),
+                        // beri padding agar tidak kepotong nav bar sistem HP.
+                        modifier = if (showBottomBar) Modifier else Modifier.navigationBarsPadding(),
+                        onOpen = {
+                            val url = npUrl ?: return@MiniPlayerBar
+                            mainContext.openPlayer(
+                                VideoUiModel(
+                                    url = url,
+                                    title = npTitle.ifBlank { "Sedang diputar" },
+                                    uploader = npUploader,
+                                    thumbnailUrl = npThumbnail,
+                                    serviceId = npServiceId,
+                                    durationSeconds = 0,
+                                ),
+                                npController?.currentPosition?.coerceAtLeast(0L) ?: 0L,
+                            )
+                        },
+                        onTogglePlay = {
+                            npController?.let { mc ->
+                                if (mc.isPlaying) mc.pause() else mc.play()
+                            }
+                        },
+                        onClose = {
+                            npController?.let { mc ->
+                                mc.stop()
+                                mc.clearMediaItems()
+                            }
+                        },
+                    )
+                }
+                if (showBottomBar) {
                 Column {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     NavigationBar(
@@ -126,6 +233,7 @@ fun NontonRoot(container: AppContainer) {
                             )
                         }
                     }
+                }
                 }
             }
         },

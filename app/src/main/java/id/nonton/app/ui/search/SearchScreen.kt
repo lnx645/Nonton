@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.nonton.app.R
 import id.nonton.app.openPlayer
+import id.nonton.app.ui.components.ContentFilterRow
 import id.nonton.app.ui.components.EmptyState
 import id.nonton.app.ui.components.EndlessListEffect
 import id.nonton.app.ui.components.ErrorState
@@ -40,6 +42,7 @@ import id.nonton.app.ui.components.FullScreenLoading
 import id.nonton.app.ui.components.LoadingFooter
 import id.nonton.app.ui.components.ServiceChips
 import id.nonton.app.ui.components.VideoRow
+import id.nonton.app.ui.home.HomeFilter
 
 @Composable
 fun SearchScreen(viewModel: SearchViewModel) {
@@ -53,6 +56,12 @@ fun SearchScreen(viewModel: SearchViewModel) {
         enabled = state.nextPage != null && !state.isLoading && !state.isLoadingMore,
         onLoadMore = viewModel::loadMore,
     )
+
+    LaunchedEffect(state.filter, state.submittedQuery) {
+        listState.scrollToItem(0)
+    }
+
+    val visibleItems = state.visibleItems
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
@@ -99,6 +108,12 @@ fun SearchScreen(viewModel: SearchViewModel) {
                 .padding(horizontal = 16.dp),
         )
 
+        if (state.submittedQuery.isNotBlank()) {
+            ContentFilterRow(
+                selected = state.filter,
+                onSelect = viewModel::selectFilter,
+            )
+        }
 
         Box(modifier = Modifier.weight(1f)) {
             when {
@@ -112,8 +127,12 @@ fun SearchScreen(viewModel: SearchViewModel) {
                     subtitle = stringResource(R.string.search_empty),
                     icon = Icons.Outlined.Search,
                 )
-                state.items.isEmpty() -> EmptyState(
-                    title = stringResource(R.string.search_no_result),
+                visibleItems.isEmpty() -> EmptyState(
+                    title = if (state.filter == HomeFilter.LIVE) {
+                        stringResource(R.string.home_empty_live)
+                    } else {
+                        stringResource(R.string.search_no_result)
+                    },
                     subtitle = "Coba kata kunci lain atau ganti layanan.",
                     icon = Icons.Outlined.Search,
                 )
@@ -130,7 +149,7 @@ fun SearchScreen(viewModel: SearchViewModel) {
                             modifier = Modifier.padding(bottom = 6.dp),
                         )
                     }
-                    items(state.items, key = { it.url }) { video ->
+                    items(visibleItems, key = { it.url }) { video ->
                         VideoRow(
                             video = video,
                             showService = true,
