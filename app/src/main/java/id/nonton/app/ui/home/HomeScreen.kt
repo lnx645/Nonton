@@ -23,6 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,6 +64,25 @@ fun HomeScreen(
     }
 
     val visibleItems = state.visibleItems
+
+    // Kalau filter aktif tapi hasilnya kosong, otomatis muat halaman berikut
+    // (maksimal 3x) karena live bisa muncul di halaman berikutnya.
+    var autoTries by remember(state.filter) { mutableStateOf(0) }
+    LaunchedEffect(
+        state.filter, visibleItems.isEmpty(), state.nextPage,
+        state.isLoading, state.isLoadingMore, autoTries,
+    ) {
+        if (state.filter != HomeFilter.ALL &&
+            state.items.isNotEmpty() &&
+            visibleItems.isEmpty() &&
+            state.nextPage != null &&
+            !state.isLoading && !state.isLoadingMore &&
+            autoTries < 3
+        ) {
+            autoTries++
+            viewModel.loadMore()
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         HomeHeader(onOpenSearch = onOpenSearch)

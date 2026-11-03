@@ -61,7 +61,15 @@ class ExtractorRepository {
                 session(key) ?: newTrendingExtractor(serviceId).also { it.fetchPage() }
             }
             val page = if (nextPage == null) extractor.initialPage else extractor.getPage(nextPage)
-            FeedPage(page.items.filterIsInstance<StreamInfoItem>(), page.nextPage)
+            val items = page.items.filterIsInstance<StreamInfoItem>()
+            if (nextPage == null) {
+                val counts = items.groupingBy { it.streamType?.name ?: "null" }.eachCount()
+                android.util.Log.d(
+                    "NontonFeed",
+                    "trending service=$serviceId total=${items.size} types=$counts",
+                )
+            }
+            FeedPage(items, page.nextPage)
         }
 
     suspend fun search(
