@@ -2,7 +2,9 @@
 
 package id.nonton.app.ui.player
 
+import android.app.Activity
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -34,11 +36,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,8 +72,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -130,7 +139,34 @@ fun PlayerScreen(
     var showSave by remember { mutableStateOf(false) }
     var showCreatePlaylist by remember { mutableStateOf(false) }
     var lastStreamUrl by remember { mutableStateOf<String?>(null) }
+    var isFullscreen by remember { mutableStateOf(false) }
+    var showSpeed by remember { mutableStateOf(false) }
+    var playbackSpeed by remember { mutableStateOf(1f) }
 
+    LaunchedEffect(controller, playbackSpeed) {
+        controller?.setPlaybackSpeed(playbackSpeed)
+    }
+
+    val contextActivity = context as? Activity
+    fun toggleFullscreen() {
+        val activity = contextActivity ?: return
+        isFullscreen = !isFullscreen
+        if (isFullscreen) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            val controller = androidx.core.view.WindowCompat.getInsetsController(
+                activity.window, activity.window.decorView
+            )
+            controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            val controller = androidx.core.view.WindowCompat.getInsetsController(
+                activity.window, activity.window.decorView
+            )
+            controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
+    }
     val playlists by library.playlists.collectAsStateWithLifecycle(emptyList())
 
     LaunchedEffect(controller, state.url, state.selectedMedia?.url) {
@@ -225,6 +261,22 @@ fun PlayerScreen(
                 }
 
                 if (!inPip) {
+                    // Top scrim for readable overlay buttons
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .height(96.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.Black.copy(alpha = 0.55f),
+                                        Color.Transparent,
+                                    )
+                                )
+                            )
+                    )
+
                     Surface(
                         shape = CircleShape,
                         color = Color.Black.copy(alpha = 0.45f),
@@ -242,20 +294,37 @@ fun PlayerScreen(
                         }
                     }
 
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.45f),
+                    Row(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .statusBarsPadding()
                             .padding(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        IconButton(onClick = onEnterPip) {
-                            Icon(
-                                imageVector = Icons.Outlined.PictureInPictureAlt,
-                                contentDescription = stringResource(R.string.player_pip),
-                                tint = Color.White,
-                            )
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.45f),
+                        ) {
+                            IconButton(onClick = onEnterPip) {
+                                Icon(
+                                    imageVector = Icons.Outlined.PictureInPictureAlt,
+                                    contentDescription = stringResource(R.string.player_pip),
+                                    tint = Color.White,
+                                )
+                            }
+                        }
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.45f),
+                        ) {
+                            IconButton(onClick = { toggleFullscreen() }) {
+                                Icon(
+                                    imageVector = if (isFullscreen) Icons.Outlined.FullscreenExit
+                                    else Icons.Outlined.Fullscreen,
+                                    contentDescription = "Layar penuh",
+                                    tint = Color.White,
+                                )
+                            }
                         }
                     }
                 }
@@ -273,6 +342,7 @@ fun PlayerScreen(
                         state = state,
                         onOpenRelated = onOpenRelated,
                         onShowQuality = { showQuality = true },
+                        onShowSpeed = { showSpeed = true },
                         onShowDownload = { showDownload = true },
                         onShowSave = { showSave = true },
                         onShare = {
@@ -328,6 +398,50 @@ fun PlayerScreen(
                     showQuality = false
                 },
                 onDismiss = { showQuality = false },
+            )
+        }
+
+        if (showSpeed) {
+            val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+            AlertDialog(
+                onDismissRequest = { showSpeed = false },
+                title = { Text("Kecepatan pemutaran") },
+                text = {
+                    Column {
+                        speeds.forEach { speed ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        playbackSpeed = speed
+                                        controller?.setPlaybackSpeed(speed)
+                                        showSpeed = false
+                                    }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                RadioButton(
+                                    selected = playbackSpeed == speed,
+                                    onClick = {
+                                        playbackSpeed = speed
+                                        controller?.setPlaybackSpeed(speed)
+                                        showSpeed = false
+                                    },
+                                )
+                                Text(
+                                    text = if (speed == 1f) "Normal (1x)" else "${speed}x",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.padding(start = 4.dp),
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSpeed = false }) {
+                        Text(stringResource(R.string.library_cancel))
+                    }
+                },
             )
         }
 
@@ -513,6 +627,7 @@ private fun PlayerContent(
     state: PlayerUiState,
     onOpenRelated: (VideoUiModel) -> Unit,
     onShowQuality: () -> Unit,
+    onShowSpeed: () -> Unit,
     onShowDownload: () -> Unit,
     onShowSave: () -> Unit,
     onShare: () -> Unit,
@@ -618,6 +733,11 @@ private fun PlayerContent(
                     icon = Icons.Outlined.Tune,
                     label = stringResource(R.string.player_quality),
                     onClick = onShowQuality,
+                )
+                PlayerActionButton(
+                    icon = Icons.Outlined.Speed,
+                    label = "Kecepatan",
+                    onClick = onShowSpeed,
                 )
                 PlayerActionButton(
                     icon = Icons.Outlined.Share,
