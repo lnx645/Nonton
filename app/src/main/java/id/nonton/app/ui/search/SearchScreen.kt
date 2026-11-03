@@ -15,12 +15,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +45,7 @@ import id.nonton.app.ui.components.LoadingFooter
 import id.nonton.app.ui.components.VideoRow
 import id.nonton.app.ui.home.HomeFilter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(viewModel: SearchViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -115,6 +118,11 @@ fun SearchScreen(viewModel: SearchViewModel) {
         }
 
         Box(modifier = Modifier.weight(1f)) {
+            PullToRefreshBox(
+                isRefreshing = state.isLoading && state.items.isNotEmpty(),
+                onRefresh = viewModel::retry,
+                modifier = Modifier.fillMaxSize(),
+            ) {
             when {
                 state.isLoading && state.items.isEmpty() -> FullScreenLoading()
                 state.error != null && state.items.isEmpty() -> ErrorState(
@@ -151,13 +159,17 @@ fun SearchScreen(viewModel: SearchViewModel) {
                     items(visibleItems, key = { it.url }) { video ->
                         VideoRow(
                             video = video,
-                            onClick = { context.openPlayer(video) },
+                            onClick = {
+                                viewModel.recordOpenedResult()
+                                context.openPlayer(video)
+                            },
                         )
                     }
                     if (state.isLoadingMore) {
                         item(key = "loading-more") { LoadingFooter() }
                     }
                 }
+            }
             }
         }
     }

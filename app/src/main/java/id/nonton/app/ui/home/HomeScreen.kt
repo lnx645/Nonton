@@ -11,15 +11,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +47,7 @@ import id.nonton.app.ui.components.FullScreenLoading
 import id.nonton.app.ui.components.LoadingFooter
 import id.nonton.app.ui.components.VideoCard
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
@@ -55,7 +59,7 @@ fun HomeScreen(
 
     EndlessListEffect(
         listState = listState,
-        enabled = state.nextPage != null && !state.isLoading && !state.isLoadingMore,
+        enabled = state.hasMore && !state.isLoading && !state.isLoadingMore,
         onLoadMore = viewModel::loadMore,
     )
 
@@ -65,19 +69,20 @@ fun HomeScreen(
 
     val visibleItems = state.visibleItems
 
-    // Kalau filter aktif tapi hasilnya kosong, otomatis muat halaman berikut
-    // (maksimal 3x) karena live bisa muncul di halaman berikutnya.
+    // Kalau hasil filter masih sedikit/kosong, otomatis muat halaman berikut.
+    // Feed video populer Indonesia bisa berisi banyak live per halaman, jadi
+    // butuh beberapa halaman sebelum daftar video terisi.
     var autoTries by remember(state.filter) { mutableStateOf(0) }
+    val autoLimit = if (state.filter == HomeFilter.VIDEO) 6 else 3
     LaunchedEffect(
-        state.filter, visibleItems.isEmpty(), state.nextPage,
+        state.filter, visibleItems.size, state.hasMore,
         state.isLoading, state.isLoadingMore, autoTries,
     ) {
         if (state.filter != HomeFilter.ALL &&
-            state.items.isNotEmpty() &&
-            visibleItems.isEmpty() &&
-            state.nextPage != null &&
+            visibleItems.size < 4 &&
+            state.hasMore &&
             !state.isLoading && !state.isLoadingMore &&
-            autoTries < 3
+            autoTries < autoLimit
         ) {
             autoTries++
             viewModel.loadMore()
@@ -92,9 +97,14 @@ fun HomeScreen(
         )
 
         Box(modifier = Modifier.weight(1f)) {
+            PullToRefreshBox(
+                isRefreshing = state.isLoading && visibleItems.isNotEmpty(),
+                onRefresh = viewModel::retry,
+                modifier = Modifier.fillMaxSize(),
+            ) {
             when {
-                state.isLoading && state.items.isEmpty() -> FullScreenLoading()
-                state.error != null && state.items.isEmpty() -> ErrorState(
+                state.isLoading && visibleItems.isEmpty() -> FullScreenLoading()
+                state.error != null && visibleItems.isEmpty() -> ErrorState(
                     message = state.error.orEmpty(),
                     onRetry = viewModel::retry,
                 )
@@ -116,12 +126,21 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = state.title,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onBackground,
-                            )
-                            Spacer(Modifier.weight(1f))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = state.title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                )
+                                state.subtitle?.let { subtitle ->
+                                    Text(
+                                        text = subtitle,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
                             Text(
                                 text = "${visibleItems.size} video",
                                 style = MaterialTheme.typography.labelMedium,
@@ -139,6 +158,7 @@ fun HomeScreen(
                         item(key = "loading-more") { LoadingFooter() }
                     }
                 }
+            }
             }
         }
     }

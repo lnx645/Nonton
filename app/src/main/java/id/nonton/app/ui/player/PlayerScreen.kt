@@ -6,6 +6,9 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.view.SurfaceView
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -107,9 +110,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.session.MediaController
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import id.nonton.app.R
 import id.nonton.app.container
 import id.nonton.app.openChannel
@@ -174,6 +177,7 @@ fun PlayerScreen(
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
     var queueSignal by remember { mutableStateOf(0) }
+    var mediaReadySignal by remember { mutableStateOf(0) }
     val stateRef = rememberUpdatedState(state)
     val openRelatedRef = rememberUpdatedState(onOpenRelated)
 
@@ -248,7 +252,9 @@ fun PlayerScreen(
     // Antrean putar-otomatis: selalu siapkan 1 video berikutnya (relasi pertama)
     // agar notifikasi menampilkan tombol next & video lanjut sendiri saat selesai.
     // Termasuk retry 3x bila gagal, supaya tombol next tidak hilang permanen.
-    LaunchedEffect(controller, state.url, state.selectedMedia?.url, queueSignal) {
+    LaunchedEffect(
+        controller, state.url, state.selectedMedia?.url, queueSignal, mediaReadySignal,
+    ) {
         val mc = controller ?: return@LaunchedEffect
         val dataNow = state.data ?: return@LaunchedEffect
         state.selectedMedia ?: return@LaunchedEffect
@@ -339,7 +345,9 @@ fun PlayerScreen(
 
         val currentUri = mediaController.currentMediaItem?.localConfiguration?.uri?.toString()
         if (currentUri == media.url) {
-            if (lastStreamUrl == null) lastStreamUrl = state.url
+            lastStreamUrl = state.url
+            // Pastikan efek antrean dijalankan setelah media item benar-benar terpasang.
+            mediaReadySignal++
             return@LaunchedEffect
         }
 
@@ -353,6 +361,8 @@ fun PlayerScreen(
         mediaController.setMediaItem(media.toMediaItem(data, state.url), startPosition)
         mediaController.prepare()
         mediaController.play()
+        // Sinyal untuk efek antrean: media utama sudah terpasang, aman menambah next.
+        mediaReadySignal++
     }
 
     LaunchedEffect(state.url, state.data?.title, controller) {
@@ -1043,7 +1053,7 @@ private fun VideoLayer(
     onSwipeDown: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        PlayerSurface(controller = controller, inPip = inPip)
+        PlayerSurface(controller = controller)
 
     if (!inPip) {
         SimplePlayerControls(
@@ -1138,22 +1148,46 @@ private fun VideoLayer(
 }
 
 @Composable
-private fun PlayerSurface(controller: MediaController?, inPip: Boolean) {
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                useController = false
-                setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                setShowNextButton(false)
-                setShowPreviousButton(false)
-                setRepeatToggleModes(0)
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+private fun PlayerSurface(controller: MediaController?) {
+    val context = LocalContext.current
+    val surfaceView = remember { SurfaceView(context) }
+    val frame = remember {
+        AspectRatioFrameLayout(context).apply {
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+            addView(
+                surfaceView,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
+    }
+
+    DisposableEffect(controller, surfaceView) {
+        val mc = controller
+        fun applySize(size: VideoSize?) {
+            if (size != null && size.width > 0 && size.height > 0) {
+                val ratio = size.width * size.pixelWidthHeightRatio / size.height
+                if (ratio > 0f) frame.setAspectRatio(ratio)
             }
-        },
-        update = { view ->
-            view.player = controller
-            view.useController = false
-        },
+        }
+        val listener = object : Player.Listener {
+            override fun onVideoSizeChanged(videoSize: VideoSize) = applySize(videoSize)
+        }
+        mc?.addListener(listener)
+        applySize(mc?.videoSize)
+        // SurfaceView polos: tidak memakai PlayerView agar tidak crash saat
+        // timeline remote (MediaController) berubah tracks/queue.
+        mc?.setVideoSurfaceView(surfaceView)
+        onDispose {
+            mc?.removeListener(listener)
+            mc?.clearVideoSurfaceView(surfaceView)
+        }
+    }
+
+    AndroidView(
+        factory = { frame },
         modifier = Modifier.fillMaxSize(),
     )
 }

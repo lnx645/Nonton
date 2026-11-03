@@ -25,11 +25,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Verified
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,6 +59,7 @@ import id.nonton.app.ui.components.FullScreenLoading
 import id.nonton.app.ui.components.LoadingFooter
 import id.nonton.app.ui.components.VideoRow
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelScreen(
     viewModel: ChannelViewModel,
@@ -89,6 +92,11 @@ fun ChannelScreen(
                 .background(MaterialTheme.colorScheme.background),
         )
         Box(modifier = Modifier.weight(1f)) {
+            PullToRefreshBox(
+                isRefreshing = state.isLoading && state.videos.isNotEmpty(),
+                onRefresh = viewModel::retry,
+                modifier = Modifier.fillMaxSize(),
+            ) {
             when {
                 state.isLoading -> FullScreenLoading()
                 state.error != null -> ErrorState(
@@ -151,6 +159,7 @@ fun ChannelScreen(
                         }
                     }
                 }
+            }
             }
         }
     }

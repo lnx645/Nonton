@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONArray
 
 class SettingsStore(context: Context) {
 
@@ -22,6 +23,39 @@ class SettingsStore(context: Context) {
 
     private val _pipEnabled = MutableStateFlow(prefs.getBoolean(KEY_PIP, true))
     val pipEnabled: StateFlow<Boolean> = _pipEnabled.asStateFlow()
+
+    // Riwayat pencarian dipakai untuk personalisasi feed Video. Disimpan
+    // sebagai JSON sederhana agar tidak perlu migrasi database.
+    private val _searchHistory = MutableStateFlow(readSearchHistory())
+    val searchHistory: StateFlow<List<String>> = _searchHistory.asStateFlow()
+
+    fun recordSearch(query: String) {
+        val normalized = query.trim().replace(Regex("\\s+"), " ")
+        if (normalized.length < 2) return
+        val current = readSearchHistory()
+        val updated = (current + normalized).takeLast(MAX_SEARCH_HISTORY)
+        prefs.edit().putString(KEY_SEARCH_HISTORY, encodeSearchHistory(updated)).apply()
+        _searchHistory.value = updated
+    }
+
+    private fun readSearchHistory(): List<String> {
+        val raw = prefs.getString(KEY_SEARCH_HISTORY, null) ?: return emptyList()
+        return runCatching {
+            val array = JSONArray(raw)
+            buildList {
+                for (index in 0 until array.length()) {
+                    val value = array.optString(index).trim()
+                    if (value.isNotEmpty()) add(value)
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun encodeSearchHistory(items: List<String>): String {
+        val array = JSONArray()
+        items.forEach { array.put(it) }
+        return array.toString()
+    }
 
     var defaultQuality: String
         get() = prefs.getString(KEY_QUALITY, "best") ?: "best"
@@ -53,5 +87,7 @@ class SettingsStore(context: Context) {
         const val KEY_DYNAMIC = "dynamic_color"
         const val KEY_PIP = "pip_enabled"
         const val KEY_QUALITY = "default_quality"
+        const val KEY_SEARCH_HISTORY = "search_history"
+        const val MAX_SEARCH_HISTORY = 60
     }
 }

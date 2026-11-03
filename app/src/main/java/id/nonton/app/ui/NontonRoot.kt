@@ -90,7 +90,7 @@ fun NontonRoot(container: AppContainer) {
     val showBottomBar = currentRoute == null || bottomDestinations.any { it.route == currentRoute }
 
     val homeViewModel: HomeViewModel = viewModel(
-        factory = HomeViewModel.factory(container.extractor, container.settings)
+        factory = HomeViewModel.factory(container.extractor, container.settings, container.library)
     )
     val searchViewModel: SearchViewModel = viewModel(
         factory = SearchViewModel.factory(container.extractor, container.settings)

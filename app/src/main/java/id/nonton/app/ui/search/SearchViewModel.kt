@@ -76,9 +76,15 @@ class SearchViewModel(
         val query = _state.value.query.trim()
         if (query.isBlank()) return
         debounceJob?.cancel()
+        settings.recordSearch(query)
         if (query == _state.value.submittedQuery && _state.value.items.isNotEmpty()) return
         _state.update { it.copy(submittedQuery = query) }
         search(reset = true)
+    }
+
+    fun recordOpenedResult() {
+        val query = _state.value.submittedQuery
+        if (query.isNotBlank()) settings.recordSearch(query)
     }
 
     fun retry() = search(reset = true)
