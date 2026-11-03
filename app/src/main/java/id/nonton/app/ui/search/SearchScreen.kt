@@ -99,11 +99,6 @@ fun SearchScreen(viewModel: SearchViewModel) {
                 .padding(horizontal = 16.dp),
         )
 
-        ServiceChips(
-            selectedServiceId = state.serviceId,
-            onSelect = viewModel::selectService,
-            modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
-        )
 
         Box(modifier = Modifier.weight(1f)) {
             when {

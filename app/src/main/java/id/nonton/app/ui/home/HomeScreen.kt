@@ -57,11 +57,6 @@ fun HomeScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         HomeHeader(onOpenSearch = onOpenSearch)
-        ServiceChips(
-            selectedServiceId = state.serviceId,
-            onSelect = viewModel::selectService,
-            modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
-        )
 
         Box(modifier = Modifier.weight(1f)) {
             when {
