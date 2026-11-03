@@ -10,13 +10,14 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColors = darkColorScheme(
     primary = CoralBright,
-    onPrimary = ColorOnDark,
+    onPrimary = Color(0xFF3D0701),
     primaryContainer = Color(0xFF5C1A12),
     onPrimaryContainer = Color(0xFFFFDAD4),
     secondary = Color(0xFFF4B8A8),
@@ -59,8 +60,6 @@ private val LightColors = lightColorScheme(
     error = Color(0xFFBA1A1A),
     onError = Color.White,
 )
-
-private val ColorOnDark = androidx.compose.ui.graphics.Color(0xFF3D0701)
 
 @Composable
 fun NontonTheme(

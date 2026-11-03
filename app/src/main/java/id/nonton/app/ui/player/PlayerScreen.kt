@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package id.nonton.app.ui.player
 
 import android.content.Intent
@@ -97,6 +99,7 @@ import id.nonton.app.ui.components.VideoRow
 import id.nonton.app.ui.library.CreatePlaylistDialog
 import id.nonton.app.ui.toUiModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -198,7 +201,7 @@ fun PlayerScreen(
         val videoHeight = if (inPip) {
             maxHeight
         } else {
-            min(maxWidth * 9f / 16f, maxHeight * 0.62f)
+            (kotlin.math.min(maxWidth.value * 9f / 16f, maxHeight.value * 0.62f)).dp
         }
 
         Column(modifier = Modifier.fillMaxSize()) {

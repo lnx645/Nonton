@@ -136,9 +136,10 @@ fun StreamInfo.isLive(): Boolean =
 fun StreamInfo.plainDescription(): String {
     val description = description ?: return ""
     return when (description.type) {
-        Description.Type.HTML -> Html.fromHtml(description.content, Html.FROM_HTML_MODE_LEGACY).toString().trim()
-        Description.Type.MARKDOWN -> description.content
-        Description.Type.PLAIN_TEXT -> description.content
+        Description.HTML -> Html.fromHtml(description.content, Html.FROM_HTML_MODE_LEGACY).toString().trim()
+        Description.MARKDOWN -> description.content
+        Description.PLAIN_TEXT -> description.content
+        else -> description.content
     }
 }
 

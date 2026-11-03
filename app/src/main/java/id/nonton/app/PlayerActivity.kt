@@ -28,7 +28,6 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
-import id.nonton.app.core.toUiModel
 import id.nonton.app.playback.PlaybackService
 import id.nonton.app.ui.player.PlayerScreen
 import id.nonton.app.ui.player.PlayerViewModel

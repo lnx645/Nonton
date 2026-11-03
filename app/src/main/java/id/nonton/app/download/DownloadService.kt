@@ -26,6 +26,7 @@ import id.nonton.app.data.DownloadEntity
 import id.nonton.app.data.DownloadKind
 import id.nonton.app.data.DownloadStatus
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -42,6 +43,8 @@ import java.io.IOException
 import java.io.OutputStream
 
 class DownloadService : Service() {
+
+    override fun onBind(intent: Intent?): android.os.IBinder? = null
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var dao: DownloadDao
