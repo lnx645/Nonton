@@ -106,6 +106,7 @@ import id.nonton.app.ui.components.ErrorState
 import id.nonton.app.ui.components.FullScreenLoading
 import id.nonton.app.ui.components.VideoRow
 import id.nonton.app.ui.library.CreatePlaylistDialog
+import id.nonton.app.PlayerIntents
 import id.nonton.app.ui.toUiModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -1076,10 +1077,18 @@ private fun extensionForMime(mime: String): String = when (mime) {
 }
 
 private fun MediaOption.toMediaItem(data: PlaybackData): MediaItem {
+    val extras = android.os.Bundle().apply {
+        putString(PlayerIntents.EXTRA_URL, url)
+        putInt(PlayerIntents.EXTRA_SERVICE_ID, data.info.serviceId)
+        putString(PlayerIntents.EXTRA_TITLE, data.title)
+        putString(PlayerIntents.EXTRA_THUMBNAIL, data.bestThumbnail)
+        putString(PlayerIntents.EXTRA_UPLOADER, data.uploader)
+    }
     val metadata = MediaMetadata.Builder()
         .setTitle(data.title)
         .setArtist(data.uploader ?: "")
         .setArtworkUri(data.bestThumbnail?.let(Uri::parse))
+        .setExtras(extras)
         .build()
 
     return MediaItem.Builder()
