@@ -1,3 +1,5 @@
+@file:OptIn(coil.annotation.ExperimentalCoilApi::class)
+
 package id.nonton.app.ui.settings
 
 import android.content.Intent
