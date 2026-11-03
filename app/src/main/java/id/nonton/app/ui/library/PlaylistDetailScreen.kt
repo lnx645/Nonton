@@ -100,7 +100,6 @@ fun PlaylistDetailScreen(
                 items(items, key = { it.id }) { item ->
                     VideoRow(
                         video = item.toUiModel(),
-                        showService = true,
                         onClick = { context.openPlayer(item.toUiModel()) },
                         trailing = {
                             IconButton(onClick = { viewModel.removeItem(item.id) }) {

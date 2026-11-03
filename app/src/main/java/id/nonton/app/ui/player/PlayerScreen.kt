@@ -76,6 +76,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -105,6 +106,7 @@ import coil.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -113,6 +115,7 @@ import id.nonton.app.container
 import id.nonton.app.openChannel
 import id.nonton.app.core.MediaOption
 import id.nonton.app.core.PlaybackData
+import id.nonton.app.core.toPlaybackData
 import id.nonton.app.core.formatCount
 import id.nonton.app.core.formatDuration
 import id.nonton.app.core.formatViewsAndDate
@@ -170,9 +173,48 @@ fun PlayerScreen(
     var isPlayingCtl by remember { mutableStateOf(false) }
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
+    var queueSignal by remember { mutableStateOf(0) }
+    val stateRef = rememberUpdatedState(state)
+    val openRelatedRef = rememberUpdatedState(onOpenRelated)
 
     LaunchedEffect(controller, playbackSpeed) {
         controller?.setPlaybackSpeed(playbackSpeed)
+    }
+
+    // Sinkronisasi instan saat item berganti (auto-next selesai / next-prev notifikasi),
+    // tanpa menunggu polling 500ms — supaya antrean berikutnya segera disiapkan.
+    DisposableEffect(controller) {
+        val mc = controller ?: return@DisposableEffect onDispose {}
+        val listener = object : Player.Listener {
+            override fun onMediaItemTransition(item: MediaItem?, reason: Int) {
+                if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
+                    reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
+                ) {
+                    return
+                }
+                if (mc.currentMediaItemIndex > 0) {
+                    runCatching { mc.removeMediaItems(0, mc.currentMediaItemIndex) }
+                }
+                val extras = item?.mediaMetadata?.extras
+                val url = extras?.getString(PlayerIntents.EXTRA_URL)
+                val current = stateRef.value
+                if (!url.isNullOrBlank() && url != current.url) {
+                    openRelatedRef.value(
+                        VideoUiModel(
+                            url = url,
+                            title = extras?.getString(PlayerIntents.EXTRA_TITLE).orEmpty(),
+                            uploader = extras?.getString(PlayerIntents.EXTRA_UPLOADER),
+                            thumbnailUrl = extras?.getString(PlayerIntents.EXTRA_THUMBNAIL),
+                            serviceId = extras?.getInt(PlayerIntents.EXTRA_SERVICE_ID, 0) ?: 0,
+                            durationSeconds = 0,
+                        )
+                    )
+                }
+                queueSignal++
+            }
+        }
+        mc.addListener(listener)
+        onDispose { mc.removeListener(listener) }
     }
 
     LaunchedEffect(controller, state.url) {
@@ -183,7 +225,78 @@ fun PlayerScreen(
             isPlayingCtl = mc.isPlaying
             positionMs = mc.currentPosition.coerceAtLeast(0L)
             durationMs = (if (mc.duration > 0) mc.duration else 0L)
+            // Sinkronisasi bila item berganti sendiri (auto-next di background/notifikasi).
+            val currentWatchUrl = mc.currentMediaItem?.mediaMetadata?.extras
+                ?.getString(PlayerIntents.EXTRA_URL)
+            if (!currentWatchUrl.isNullOrBlank() && currentWatchUrl != state.url) {
+                val extras = mc.currentMediaItem?.mediaMetadata?.extras
+                onOpenRelated(
+                    VideoUiModel(
+                        url = currentWatchUrl,
+                        title = extras?.getString(PlayerIntents.EXTRA_TITLE).orEmpty(),
+                        uploader = extras?.getString(PlayerIntents.EXTRA_UPLOADER),
+                        thumbnailUrl = extras?.getString(PlayerIntents.EXTRA_THUMBNAIL),
+                        serviceId = extras?.getInt(PlayerIntents.EXTRA_SERVICE_ID, 0) ?: 0,
+                        durationSeconds = 0,
+                    )
+                )
+            }
             delay(500)
+        }
+    }
+
+    // Antrean putar-otomatis: selalu siapkan 1 video berikutnya (relasi pertama)
+    // agar notifikasi menampilkan tombol next & video lanjut sendiri saat selesai.
+    // Termasuk retry 3x bila gagal, supaya tombol next tidak hilang permanen.
+    LaunchedEffect(controller, state.url, state.selectedMedia?.url, queueSignal) {
+        val mc = controller ?: return@LaunchedEffect
+        val dataNow = state.data ?: return@LaunchedEffect
+        state.selectedMedia ?: return@LaunchedEffect
+        val watchUrl = state.url
+        if (mc.currentMediaItemIndex < mc.mediaItemCount - 1) {
+            // Sudah ada item berikutnya (mis. baru auto-next).
+            // Buang item lama di belakang agar antrean tidak menumpuk.
+            if (mc.currentMediaItemIndex > 0) {
+                runCatching { mc.removeMediaItems(0, mc.currentMediaItemIndex) }
+            }
+            if (mc.currentMediaItem?.mediaMetadata?.extras
+                    ?.getString(PlayerIntents.EXTRA_URL) != watchUrl
+            ) {
+                return@LaunchedEffect // tunggu sinkronisasi viewModel
+            }
+        }
+        val related = dataNow.info.relatedItems
+            .filterIsInstance<StreamInfoItem>()
+            .map { it.toUiModel() }
+        val next = related.firstOrNull { it.url != watchUrl } ?: return@LaunchedEffect
+        val qualityPref = context.container.settings.defaultQuality
+        var attempt = 0
+        while (attempt < 3) {
+            val currentWatchUrl = mc.currentMediaItem?.mediaMetadata?.extras
+                ?.getString(PlayerIntents.EXTRA_URL)
+            if (currentWatchUrl != watchUrl) return@LaunchedEffect
+            if (mc.currentMediaItemIndex < mc.mediaItemCount - 1) return@LaunchedEffect
+            val result = context.container.extractor.stream(next.serviceId, next.url)
+            var done = false
+            result.onSuccess { info ->
+                val playback = info.toPlaybackData()
+                val media = playback.defaultVideo(qualityPref)
+                    ?: playback.preferredAudio
+                if (media == null) {
+                    done = true // tidak ada format valid, hentikan retry
+                } else if (mc.currentMediaItem?.mediaMetadata?.extras
+                        ?.getString(PlayerIntents.EXTRA_URL) == watchUrl &&
+                    mc.currentMediaItemIndex == mc.mediaItemCount - 1
+                ) {
+                    runCatching { mc.addMediaItem(media.toMediaItem(playback, next.url)) }
+                    done = mc.currentMediaItemIndex < mc.mediaItemCount - 1
+                } else {
+                    done = true // kondisi berubah, hentikan retry
+                }
+            }
+            if (done) return@LaunchedEffect
+            attempt++
+            if (attempt < 3) delay(3_000)
         }
     }
 
@@ -326,12 +439,12 @@ fun PlayerScreen(
                 }
             } else {
                 if (!inPip) {
-                    // Status bar solid hitam seperti YouTube, video mulai di bawahnya.
+                    // Status bar mengikuti tema (seperti YouTube), video mulai di bawahnya.
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .windowInsetsTopHeight(WindowInsets.statusBars)
-                            .background(Color.Black),
+                            .background(MaterialTheme.colorScheme.background),
                     )
                 }
                 Box(
@@ -698,7 +811,7 @@ private fun CompactSeekBar(
                 .align(Alignment.CenterStart)
                 .fillMaxWidth(fraction)
                 .height(barHeight)
-                .background(Color(0xFFFF0000), RoundedCornerShape(2.dp)),
+                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)),
         )
         val density = LocalDensity.current
         val thumbSize = 10.dp
@@ -710,7 +823,7 @@ private fun CompactSeekBar(
                 .align(Alignment.CenterStart)
                 .offset(x = xOffset)
                 .size(thumbSize)
-                .background(Color(0xFFFF0000), CircleShape),
+                .background(MaterialTheme.colorScheme.primary, CircleShape),
         )
     }
 }
@@ -855,10 +968,13 @@ private fun SimplePlayerControls(
                             text = stringResource(R.string.live),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier
                                 .padding(start = 6.dp)
-                                .background(Color(0xFFFF0000), RoundedCornerShape(4.dp))
+                                .background(
+                                    MaterialTheme.colorScheme.errorContainer,
+                                    RoundedCornerShape(4.dp),
+                                )
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     } else {
@@ -1299,13 +1415,13 @@ private fun ChannelAvatar(name: String?) {
 private fun LiveBadge() {
     Surface(
         shape = RoundedCornerShape(4.dp),
-        color = Color(0xFFE53935),
+        color = MaterialTheme.colorScheme.errorContainer,
     ) {
         Text(
             text = stringResource(R.string.live),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onErrorContainer,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
@@ -1691,7 +1807,7 @@ private fun CommentRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = comment.author.trim().firstOrNull()?.uppercase() ?: "?",
+                    text = comment.author.trim().removePrefix("@").firstOrNull()?.uppercase() ?: "?",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,

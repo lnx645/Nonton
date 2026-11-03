@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -73,7 +76,18 @@ fun ChannelScreen(
         listState.scrollToItem(0)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        // Strip status bar solid agar tidak transparan saat konten di-scroll.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(MaterialTheme.colorScheme.background),
+        )
         Box(modifier = Modifier.weight(1f)) {
             when {
                 state.isLoading -> FullScreenLoading()
@@ -171,6 +185,21 @@ private fun ChannelHeader(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+            // Scrim atas agar ikon status bar & tombol back terbaca di atas banner.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(84.dp)
+                    .align(Alignment.TopCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.45f),
+                                Color.Transparent,
+                            )
+                        )
+                    ),
+            )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

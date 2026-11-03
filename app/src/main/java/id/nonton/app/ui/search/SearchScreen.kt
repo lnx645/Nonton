@@ -40,7 +40,6 @@ import id.nonton.app.ui.components.EndlessListEffect
 import id.nonton.app.ui.components.ErrorState
 import id.nonton.app.ui.components.FullScreenLoading
 import id.nonton.app.ui.components.LoadingFooter
-import id.nonton.app.ui.components.ServiceChips
 import id.nonton.app.ui.components.VideoRow
 import id.nonton.app.ui.home.HomeFilter
 
@@ -152,7 +151,6 @@ fun SearchScreen(viewModel: SearchViewModel) {
                     items(visibleItems, key = { it.url }) { video ->
                         VideoRow(
                             video = video,
-                            showService = true,
                             onClick = { context.openPlayer(video) },
                         )
                     }

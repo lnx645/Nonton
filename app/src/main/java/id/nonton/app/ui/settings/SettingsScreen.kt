@@ -66,11 +66,12 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val scope = rememberCoroutineScope()
     var dialog by remember { mutableStateOf<String?>(null) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
         item {
             Text(
                 text = stringResource(R.string.nav_settings),
@@ -226,6 +227,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             },
             onDismiss = { dialog = null },
         )
+    }
     }
 }
 

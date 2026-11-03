@@ -214,7 +214,6 @@ private fun HistoryTab(
         items(history, key = { it.streamUrl }) { item ->
             VideoRow(
                 video = item.toUiModel(),
-                showService = true,
                 onClick = { onOpen(item) },
                 trailing = {
                     IconButton(onClick = { onDelete(item.streamUrl) }) {

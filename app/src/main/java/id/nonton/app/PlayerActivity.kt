@@ -14,6 +14,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -75,9 +76,6 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
-        // Ikon status bar putih agar terlihat di atas video (ala YouTube).
-        WindowCompat.getInsetsController(window, window.decorView)
-            .isAppearanceLightStatusBars = false
         super.onCreate(savedInstanceState)
 
         val url = intent.getStringExtra(PlayerIntents.EXTRA_URL)
@@ -90,7 +88,16 @@ class PlayerActivity : ComponentActivity() {
         connectController()
 
         setContent {
-            NontonTheme(darkTheme = true) {
+            val container = applicationContext.container
+            val themeMode by container.settings.themeMode.collectAsStateWithLifecycle()
+            val dynamicColor by container.settings.dynamicColor.collectAsStateWithLifecycle()
+            val systemDark = isSystemInDarkTheme()
+            val darkTheme = when (themeMode) {
+                "light" -> false
+                "dark" -> true
+                else -> systemDark
+            }
+            NontonTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 PlayerScreen(
                     state = state,

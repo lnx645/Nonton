@@ -39,7 +39,6 @@ import id.nonton.app.ui.components.EndlessListEffect
 import id.nonton.app.ui.components.ErrorState
 import id.nonton.app.ui.components.FullScreenLoading
 import id.nonton.app.ui.components.LoadingFooter
-import id.nonton.app.ui.components.ServiceChips
 import id.nonton.app.ui.components.VideoCard
 
 @Composable

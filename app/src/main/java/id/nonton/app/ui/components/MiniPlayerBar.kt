@@ -114,7 +114,7 @@ fun MiniPlayerBar(
             if (progressFraction > 0f) {
                 LinearProgressIndicator(
                     progress = { progressFraction.coerceIn(0f, 1f) },
-                    color = Color(0xFFFF0000),
+                    color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                 )
