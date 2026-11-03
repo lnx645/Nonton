@@ -21,9 +21,25 @@ android {
         }
     }
 
+    signingConfigs {
+        // Kunci rilis TIDAK masuk repo. Diisi lewat env saat build rilis:
+        // NONTON_RELEASE_STORE_FILE / _STORE_PASSWORD / _KEY_ALIAS / _KEY_PASSWORD.
+        // Keystore yang dipakai = keystore NontonTv (keputusan uwa: pakai keystore lama).
+        val releaseStore = System.getenv("NONTON_RELEASE_STORE_FILE")
+        if (!releaseStore.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = System.getenv("NONTON_RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("NONTON_RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("NONTON_RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
